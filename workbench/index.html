@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人工作台</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#ffffff; --ink:#1f2933; --muted:#6b7785; --line:#e3e7ec;
+    --brand:#2563eb; --brand-soft:#e8f0fe; --ok:#1f9d55; --ok-soft:#e6f6ec;
+    --warn:#c2410c; --warn-soft:#fdeee4; --bad:#d92d20; --bad-soft:#fdeceb;
+    --chip:#eef1f5;
+  }
+  [data-theme="dark"]{
+    --bg:#15181d; --panel:#1e232b; --ink:#e6eaf0; --muted:#9aa5b1; --line:#2c333d;
+    --brand:#5b8cff; --brand-soft:#1d2b47; --ok:#3fbf72; --ok-soft:#16321f;
+    --warn:#e08a4b; --warn-soft:#3a2a1c; --bad:#f06a5d; --bad-soft:#3a221f;
+    --chip:#262d37;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:14px;line-height:1.5}
+  button{cursor:pointer;font-family:inherit;font-size:13px;border-radius:8px;
+    border:1px solid var(--brand);background:var(--brand);color:#fff;padding:8px 14px;font-weight:600}
+  button.ghost{background:var(--panel);color:var(--brand)}
+  button.mini{padding:5px 10px;font-size:12px}
+  input,select,textarea{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;
+    background:var(--panel);color:var(--ink);font-family:inherit}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
+  .muted{color:var(--muted)}
+  .hidden{display:none!important}
+
+  /* layout */
+  #app{display:flex;min-height:100%}
+  #nav{width:180px;background:var(--panel);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;padding:14px 10px;gap:4px;position:sticky;top:0;height:100vh}
+  #nav .navbtn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;
+    border:1px solid transparent;background:transparent;color:var(--ink);font-weight:600;width:100%;text-align:left;cursor:pointer}
+  #nav .navbtn.active{background:var(--brand-soft);color:var(--brand)}
+  #nav .navbtn:hover{background:var(--chip)}
+  main{flex:1;padding:0 0 80px}
+  header.top{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);
+    padding:12px 20px;display:flex;align-items:center;gap:14px}
+  header.top h1{font-size:16px;margin:0;font-weight:700}
+  header.top .date{margin-left:auto;color:var(--muted);font-size:13px}
+  section.page{display:none;padding:18px 20px;max-width:900px;margin:0 auto}
+  section.page.active{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 12px}
+  .tag{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--brand-soft);color:var(--brand);font-weight:600}
+
+  /* bottom nav for mobile */
+  #bottomnav{display:none}
+  @media (max-width:720px){
+    #nav{display:none}
+    #bottomnav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:20;
+      background:var(--panel);border-top:1px solid var(--line);justify-content:space-around;padding:6px 2px}
+    #bottomnav .navbtn{flex:1;flex-direction:column;gap:2px;font-size:10px;padding:6px 2px;border:none;background:transparent;color:var(--muted)}
+    #bottomnav .navbtn.active{color:var(--brand)}
+    main{padding-bottom:84px}
+  }
+  /* generic ui bits used by later stages */
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .grid-list{display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:10px 12px}
+  .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--muted);flex:none}
+  .dot.do{background:var(--muted)}
+  .dot.ing{background:var(--warn);border-color:var(--warn)}
+  .dot.done{background:var(--ok);border-color:var(--ok)}
+  .badge{font-size:11px;padding:1px 7px;border-radius:99px;font-weight:600}
+  .badge.p1{background:var(--bad-soft);color:var(--bad)}
+  .badge.p2{background:var(--warn-soft);color:var(--warn)}
+  .badge.p3{background:var(--chip);color:var(--muted)}
+  .badge.src{background:var(--brand-soft);color:var(--brand)}
+  .badge.rep{background:var(--ok-soft);color:var(--ok)}
+  .summary-cards{display:flex;gap:12px;flex-wrap:wrap}
+  .sc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:120px}
+  .sc b{font-size:20px;display:block;color:var(--brand)}
+  .sc span{font-size:12px;color:var(--muted)}
+  .hint{font-size:12px;color:var(--warn);margin-top:8px}
+  .empty{color:var(--muted);font-size:13px;padding:18px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .tabs .tab{padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;font-size:13px}
+  .tabs .tab.active{background:var(--brand-soft);color:var(--brand);border-color:var(--brand)}
+  textarea{width:100%;min-height:70px;resize:vertical}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav id="nav">
+    <button class="navbtn" data-page="home">🏠 首页</button>
+    <button class="navbtn" data-page="today">📋 今日计划</button>
+    <button class="navbtn" data-page="algo">🧮 算法题</button>
+    <button class="navbtn" data-page="cet6">📚 六级备考</button>
+    <button class="navbtn" data-page="school">🏫 学校事务</button>
+    <button class="navbtn" data-page="settings">⚙️ 数据与设置</button>
+  </nav>
+  <main>
+    <header class="top">
+      <h1>个人工作台</h1>
+      <span class="date" id="topDate"></span>
+    </header>
+
+    <section class="page" id="page-home"></section>
+    <section class="page" id="page-today"></section>
+    <section class="page" id="page-algo"></section>
+    <section class="page" id="page-cet6"></section>
+    <section class="page" id="page-school"></section>
+    <section class="page" id="page-settings"></section>
+  </main>
+</div>
+<nav id="bottomnav">
+  <button class="navbtn" data-page="home">🏠<br>首页</button>
+  <button class="navbtn" data-page="today">📋<br>计划</button>
+  <button class="navbtn" data-page="algo">🧮<br>算法</button>
+  <button class="navbtn" data-page="cet6">📚<br>六级</button>
+  <button class="navbtn" data-page="school">🏫<br>学校</button>
+  <button class="navbtn" data-page="settings">⚙️<br>设置</button>
+</nav>
+
+<script>
+"use strict";
+/* ============ 核心状态层 ============ */
+const STORAGE_KEY = "personal_workbench_v1";
+let nowOverride = null; // 测试可注入“今天”
+
+function defaultState(){
+  return {
+    tasks: [],
+    algorithm: { leetcode:[], nowcoder:[], luogu:[], lanqiao:[] },
+    cet6: { mock:[], templates:[], words:[] },
+    school: { hw:[], contest:[], meeting:[], notice:[] },
+    schoolLead: { hw:3, contest:3, meeting:3, notice:3 },
+    checkin: { algorithm:{streak:0,lastDate:null}, cet6:{streak:0,lastDate:null} },
+    memo: "",
+    settings: { theme:"light" }
+  };
+}
+let state = defaultState();
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ const o = JSON.parse(raw); if(o && typeof o==="object"){ state = Object.assign(defaultState(), o); } }
+    else { state = defaultState(); }
+  }catch(e){ state = defaultState(); /* 损坏则回退默认 */ }
+  return state;
+}
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+/* 日期工具 */
+function fmt(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${dd}`; }
+function now(){ return nowOverride ? new Date(nowOverride) : new Date(); }
+function todayStr(){ return fmt(now()); }
+function yesterdayStr(){ const d=now(); d.setDate(d.getDate()-1); return fmt(d); }
+function daysBetween(a,b){ // b - a 的天数（按日期）
+  const da=new Date(a+"T00:00:00"), db=new Date(b+"T00:00:00");
+  return Math.round((db-da)/86400000);
+}
+
+/* 通用 CRUD */
+function upsert(arr,item){ const i=arr.findIndex(x=>x.id===item.id); if(i>=0) arr[i]=item; else arr.push(item); }
+function removeById(arr,id){ const i=arr.findIndex(x=>x.id===id); if(i>=0) arr.splice(i,1); }
+function findById(arr,id){ return arr.find(x=>x.id===id); }
+
+/* ============ 导航与渲染 ============ */
+let currentPage = "home";
+function switchPage(p){
+  currentPage = p;
+  document.querySelectorAll("#nav .navbtn, #bottomnav .navbtn").forEach(b=>{
+    b.classList.toggle("active", b.getAttribute("data-page")===p);
+  });
+  document.querySelectorAll("section.page").forEach(s=>s.classList.remove("active"));
+  const sec = document.getElementById("page-"+p);
+  if(sec) sec.classList.add("active");
+  render();
+}
+function render(){
+  const d = document.getElementById("topDate"); if(d) d.textContent = todayStr();
+  if(currentPage==="home") renderHome();
+  else if(currentPage==="today") renderToday();
+  else if(currentPage==="algo") renderAlgo();
+  else if(currentPage==="cet6") renderCet6();
+  else if(currentPage==="school") renderSchool();
+  else if(currentPage==="settings") renderSettings();
+}
+function applyTheme(){
+  const t = (state.settings && state.settings.theme) || "light";
+  document.documentElement.setAttribute("data-theme", t);
+}
+function setTheme(t){ state.settings.theme=t; applyTheme(); save(); }
+
+/* 占位渲染（后续阶段填充） */
+function renderHome(){ document.getElementById("page-home").innerHTML = '<div class="card"><h2>首页总览</h2><div class="empty">建设中</div></div>'; }
+
+/* ============ 首页总览 ============ */
+function setMemo(text){ state.memo = text; save(); } // 不触发 render，避免输入时失焦
+function completeTask(id){ const t=findById(state.tasks,id); if(!t) return; t.status="已完成"; save(); render(); }
+function renderHome(){
+  const box = document.getElementById("page-home");
+  dailyRoll(); // 进入首页触发每日重置 + 学校事务自动派发
+  const incomplete = state.tasks.filter(t=>t.status!=="已完成");
+  const algoC = state.checkin.algorithm, cetC = state.checkin.cet6;
+  const N = 7;
+  let upcoming = 0;
+  ["hw","contest","meeting","notice"].forEach(ty=>{
+    state.school[ty].forEach(it=>{
+      if(it.status==="已完成") return;
+      const lead = (it.leadDays!=null)?it.leadDays:state.schoolLead[ty];
+      if(daysBetween(todayStr(), it.ddl) <= N + lead) upcoming++;
+    });
+  });
+  const incRows = incomplete.map(t=>{
+    const src = t.source==="派"?'<span class="badge src">派</span>':'';
+    return `<div class="item" data-id="${t.id}">
+      <div style="flex:1">${escapeHtml(t.title)} ${src} <span class="muted" style="font-size:12px">${t.priority}·${escapeHtml(t.cat||"")}</span></div>
+      <button class="ghost mini" data-act="done">完成</button></div>`;
+  }).join("") || '<div class="empty">今日暂无未完成任务 🎉</div>';
+  box.innerHTML = `<div class="card">
+    <h2>首页总览 <span class="tag">${todayStr()}</span></h2>
+    <div class="card" style="background:var(--bg)">
+      <h2 style="font-size:13px">快速备忘</h2>
+      <textarea id="memo" placeholder="随手记，输入即存">${escapeHtml(state.memo)}</textarea>
+    </div>
+    <div class="card" style="background:var(--bg)">
+      <h2 style="font-size:13px">今日计划 · 未完成 (${incomplete.length})</h2>
+      <div class="grid-list">${incRows}</div>
+    </div>
+    <div class="summary-cards">
+      <div class="sc"><b>${algoC.streak}</b><span>算法题连续打卡</span></div>
+      <div class="sc"><b>${algoC.lastDate===todayStr()?'已打卡':'未打卡'}</b><span>算法题今日</span></div>
+      <div class="sc"><b>${cetC.streak}</b><span>六级连续打卡</span></div>
+      <div class="sc"><b>${cetC.lastDate===todayStr()?'已打卡':'未打卡'}</b><span>六级今日</span></div>
+      <div class="sc"><b>${upcoming}</b><span>学校事务即将到期</span></div>
+    </div>
+  </div>`;
+  const memo = box.querySelector("#memo");
+  memo.addEventListener("input", ()=> setMemo(memo.value));
+  box.querySelectorAll('[data-act="done"]').forEach(b=> b.addEventListener("click", ()=> completeTask(b.closest(".item").getAttribute("data-id"))));
+}
+function renderAlgo(){ document.getElementById("page-algo").innerHTML = '<div class="card"><h2>算法题</h2><div class="empty">建设中</div></div>'; }
+
+/* ============ 算法题 ============ */
+const ALGO_PLATFORMS = [["leetcode","LeetCode"],["nowcoder","牛客"],["luogu","洛谷"],["lanqiao","蓝桥官网"]];
+let algoPlatform = "leetcode";
+function setAlgoPlatform(p){ algoPlatform=p; render(); }
+function addAlgoQuestion(platform, {no, diff, tags, mastery, status}){
+  const q = { id:uid(), no, diff, tags: tags||[], mastery: mastery||"陌生", status: status||"待刷", dispatched:false };
+  state.algorithm[platform].push(q); save(); render(); return q;
+}
+function updateAlgoQuestion(platform, id, patch){ const q=findById(state.algorithm[platform],id); if(!q) return; Object.assign(q,patch); save(); render(); }
+function deleteAlgoQuestion(platform, id){ removeById(state.algorithm[platform], id); save(); render(); }
+function dispatchAlgo(platform, id){
+  const q = findById(state.algorithm[platform], id); if(!q) return false;
+  const ok = dispatchToToday({ refType:"algorithm", refId:q.id, title:`[算法]${platform} #${q.no}` });
+  if(ok){ q.dispatched=true; save(); render(); }
+  return ok;
+}
+function renderAlgo(){
+  const box = document.getElementById("page-algo");
+  const arr = state.algorithm[algoPlatform];
+  const c = state.checkin.algorithm;
+  const tabs = ALGO_PLATFORMS.map(([k,n])=>`<button class="tab ${algoPlatform===k?'active':''}" data-p="${k}">${n}</button>`).join("");
+  let rows = arr.map(q=>{
+    const tags = (q.tags||[]).map(t=>`<span class="badge p3">${escapeHtml(t)}</span>`).join(" ");
+    const disp = q.dispatched?`<span class="badge src">已派</span>`:'';
+    return `<div class="item" data-id="${q.id}">
+      <div style="flex:1">
+        <div>#${escapeHtml(q.no)} · ${escapeHtml(q.diff)} · ${escapeHtml(q.status)} · 掌握:${escapeHtml(q.mastery||"")}</div>
+        <div class="row" style="margin-top:2px">${tags}${disp}</div>
+      </div>
+      <button class="ghost mini" data-act="disp">派任务</button>
+      <button class="ghost mini" data-act="del">删除</button>
+    </div>`;
+  }).join("");
+  if(!rows) rows = '<div class="empty">该平台还没有题目，下面添加</div>';
+  box.innerHTML = `<div class="card">
+    <h2>算法题</h2>
+    <div class="row" style="margin-bottom:10px">
+      <div class="summary-cards" style="margin:0">
+        <div class="sc"><b>${c.streak}</b><span>连续打卡(天)</span></div>
+        <div class="sc"><b>${c.lastDate===todayStr()?'已打卡':'未打卡'}</b><span>今日</span></div>
+      </div>
+      <button id="algoCheckin">今日打卡</button>
+    </div>
+    <div class="tabs">${tabs}</div>
+    <div class="row" style="margin-bottom:12px">
+      <input id="aNo" placeholder="题号">
+      <select id="aDiff"><option>简单</option><option>中等</option><option>困难</option></select>
+      <input id="aTags" placeholder="题型标签,逗号分隔" style="width:160px">
+      <select id="aMastery"><option>陌生</option><option>了解</option><option>掌握</option><option>熟练</option></select>
+      <select id="aStatus"><option>待刷</option><option>刷过</option><option>已掌握</option></select>
+      <button id="aAdd">添加题目</button>
+    </div>
+    <div class="grid-list">${rows}</div>
+  </div>`;
+  box.querySelectorAll('[data-p]').forEach(b=> b.addEventListener("click", ()=> setAlgoPlatform(b.getAttribute("data-p"))));
+  box.querySelector("#aAdd").addEventListener("click", ()=>{
+    const no = box.querySelector("#aNo").value.trim();
+    if(!no){ alert("题号不能为空"); return; }
+    const tags = box.querySelector("#aTags").value.split(",").map(s=>s.trim()).filter(Boolean);
+    addAlgoQuestion(algoPlatform, { no, diff:box.querySelector("#aDiff").value, tags,
+      mastery:box.querySelector("#aMastery").value, status:box.querySelector("#aStatus").value });
+  });
+  box.querySelector("#algoCheckin").addEventListener("click", ()=>{ doCheckin("algorithm"); switchPage("algo"); });
+  box.querySelectorAll('[data-act="disp"]').forEach(b=> b.addEventListener("click", ()=> dispatchAlgo(algoPlatform, b.closest(".item").getAttribute("data-id"))));
+  box.querySelectorAll('[data-act="del"]').forEach(b=> b.addEventListener("click", ()=> deleteAlgoQuestion(algoPlatform, b.closest(".item").getAttribute("data-id"))));
+}
+function renderCet6(){ document.getElementById("page-cet6").innerHTML = '<div class="card"><h2>六级备考</h2><div class="empty">建设中</div></div>'; }
+
+/* ============ 六级备考 ============ */
+function addMock({date, listenErr, readErr, time, weak}){
+  const m = { id:uid(), date, listenErr:Number(listenErr)||0, readErr:Number(readErr)||0, time:time||"", weak: weak||[] };
+  state.cet6.mock.push(m); save(); render(); return m;
+}
+function updateMock(id, patch){ const m=findById(state.cet6.mock,id); if(!m) return; Object.assign(m,patch); save(); render(); }
+function deleteMock(id){ removeById(state.cet6.mock, id); save(); render(); }
+function addTemplate({type, title, body}){ const t={ id:uid(), type, title, body }; state.cet6.templates.push(t); save(); render(); return t; }
+function updateTemplate(id, patch){ const t=findById(state.cet6.templates,id); if(!t) return; Object.assign(t,patch); save(); render(); }
+function deleteTemplate(id){ removeById(state.cet6.templates, id); save(); render(); }
+function addWord(text){ const w={ id:uid(), text, dispatched:false }; state.cet6.words.push(w); save(); render(); return w; }
+function dispatchWord(id){
+  const w = findById(state.cet6.words, id); if(!w) return false;
+  const ok = dispatchToToday({ refType:"cet6-words", refId:w.id, title:"[六级]"+w.text });
+  if(ok){ w.dispatched=true; save(); render(); }
+  return ok;
+}
+function renderCet6(){
+  const box = document.getElementById("page-cet6");
+  const c = state.checkin.cet6;
+  const mock = state.cet6.mock.map(m=>{
+    const weak = (m.weak||[]).map(t=>`<span class="badge p3">${escapeHtml(t)}</span>`).join(" ");
+    return `<div class="item" data-id="${m.id}">
+      <div style="flex:1"><div>${escapeHtml(m.date)} · 听力错${m.listenErr} · 阅读错${m.readErr} · 用时${escapeHtml(m.time)}</div>
+        <div class="row" style="margin-top:2px">${weak}</div></div>
+      <button class="ghost mini" data-act="del">删除</button></div>`;
+  }).join("") || '<div class="empty">还没有模考记录</div>';
+  const tmpl = state.cet6.templates.map(t=>{
+    return `<div class="item" data-id="${t.id}">
+      <div style="flex:1"><div><b>[${escapeHtml(t.type)}]</b> ${escapeHtml(t.title)}</div>
+        <div class="muted" style="font-size:12px;margin-top:2px;white-space:pre-wrap">${escapeHtml(t.body).slice(0,80)}</div></div>
+      <button class="ghost mini" data-act="del">删除</button></div>`;
+  }).join("") || '<div class="empty">还没有模板/范文</div>';
+  const words = state.cet6.words.map(w=>{
+    const disp = w.dispatched?'<span class="badge src">已派</span>':'';
+    return `<div class="item" data-id="${w.id}">
+      <div style="flex:1">${escapeHtml(w.text)} ${disp}</div>
+      <button class="ghost mini" data-act="disp">派任务</button>
+      <button class="ghost mini" data-act="del">删除</button></div>`;
+  }).join("") || '<div class="empty">还没有单词/听力条目</div>';
+  box.innerHTML = `<div class="card">
+    <h2>六级备考</h2>
+    <div class="row" style="margin-bottom:10px">
+      <div class="summary-cards" style="margin:0">
+        <div class="sc"><b>${c.streak}</b><span>连续打卡(天)</span></div>
+        <div class="sc"><b>${c.lastDate===todayStr()?'已打卡':'未打卡'}</b><span>今日</span></div>
+      </div>
+      <button id="cetCheckin">今日打卡</button>
+    </div>
+  </div>
+  <div class="card"><h2>真题 / 模考</h2>
+    <div class="row" style="margin-bottom:12px">
+      <input id="mDate" type="date">
+      <input id="mListen" type="number" placeholder="听力错" style="width:80px">
+      <input id="mRead" type="number" placeholder="阅读错" style="width:80px">
+      <input id="mTime" placeholder="用时" style="width:90px">
+      <input id="mWeak" placeholder="弱项,逗号" style="width:140px">
+      <button id="mAdd">添加记录</button>
+    </div>
+    <div class="grid-list">${mock}</div>
+  </div>
+  <div class="card"><h2>写作 / 翻译</h2>
+    <div class="row" style="margin-bottom:12px">
+      <select id="tType"><option>写作</option><option>翻译</option></select>
+      <input id="tTitle" placeholder="标题" style="width:160px">
+      <textarea id="tBody" placeholder="内容（纯文本）"></textarea>
+      <button id="tAdd">保存模板/范文</button>
+    </div>
+    <div class="grid-list">${tmpl}</div>
+  </div>
+  <div class="card"><h2>单词 / 听力</h2>
+    <div class="row" style="margin-bottom:12px">
+      <input id="wText" placeholder="条目，如：背50词 / 听1篇">
+      <button id="wAdd">添加</button>
+    </div>
+    <div class="grid-list">${words}</div>
+  </div>`;
+  box.querySelector("#cetCheckin").addEventListener("click", ()=>{ doCheckin("cet6"); switchPage("cet6"); });
+  box.querySelector("#mAdd").addEventListener("click", ()=>{
+    const date = box.querySelector("#mDate").value; if(!date){ alert("请选择日期"); return; }
+    const weak = box.querySelector("#mWeak").value.split(",").map(s=>s.trim()).filter(Boolean);
+    addMock({ date, listenErr:box.querySelector("#mListen").value, readErr:box.querySelector("#mRead").value,
+      time:box.querySelector("#mTime").value, weak });
+  });
+  box.querySelector("#tAdd").addEventListener("click", ()=>{
+    const title = box.querySelector("#tTitle").value.trim(); if(!title){ alert("标题不能为空"); return; }
+    addTemplate({ type:box.querySelector("#tType").value, title, body:box.querySelector("#tBody").value });
+  });
+  box.querySelector("#wAdd").addEventListener("click", ()=>{
+    const text = box.querySelector("#wText").value.trim(); if(!text){ alert("内容不能为空"); return; }
+    addWord(text);
+  });
+  box.querySelectorAll('#page-cet6 .card:nth-child(2) [data-act="del"]').forEach(b=> b.addEventListener("click", ()=> deleteMock(b.closest(".item").getAttribute("data-id"))));
+  box.querySelectorAll('#page-cet6 .card:nth-child(3) [data-act="del"]').forEach(b=> b.addEventListener("click", ()=> deleteTemplate(b.closest(".item").getAttribute("data-id"))));
+  box.querySelectorAll('#page-cet6 .card:nth-child(4) [data-act="del"]').forEach(b=> b.addEventListener("click", ()=> deleteWord(b.closest(".item").getAttribute("data-id"))));
+  box.querySelectorAll('#page-cet6 .card:nth-child(4) [data-act="disp"]').forEach(b=> b.addEventListener("click", ()=> dispatchWord(b.closest(".item").getAttribute("data-id"))));
+}
+function deleteWord(id){ removeById(state.cet6.words, id); save(); render(); }
+function renderSchool(){ document.getElementById("page-school").innerHTML = '<div class="card"><h2>学校事务</h2><div class="empty">建设中</div></div>'; }
+
+/* ============ 学校事务 ============ */
+const SCHOOL_TYPES = [["hw","学科作业"],["contest","竞赛日期"],["meeting","活动会议"],["notice","学院通知"]];
+let schoolType = "hw";
+function setSchoolType(t){ schoolType=t; render(); }
+function addSchool(type, {title, ddl, status, note, leadDays}){
+  const it = { id:uid(), title, ddl, status:status||"待处理", note:note||"",
+    leadDays:(leadDays!=null && leadDays!=="") ? Number(leadDays) : state.schoolLead[type], dispatched:false };
+  state.school[type].push(it); save(); render(); return it;
+}
+function updateSchool(type, id, patch){ const it=findById(state.school[type],id); if(!it) return; Object.assign(it,patch); save(); render(); }
+function deleteSchool(type, id){ removeById(state.school[type], id); save(); render(); }
+function renderSchool(){
+  const box = document.getElementById("page-school");
+  const arr = state.school[schoolType];
+  const tabs = SCHOOL_TYPES.map(([k,n])=>`<button class="tab ${schoolType===k?'active':''}" data-t="${k}">${n}</button>`).join("");
+  let rows = arr.map(it=>{
+    const disp = it.dispatched?`<span class="badge src">已派</span>`:'';
+    return `<div class="item" data-id="${it.id}">
+      <div style="flex:1">
+        <div>${escapeHtml(it.title)} · DDL ${escapeHtml(it.ddl)} · 状态:${escapeHtml(it.status)} · 提前${it.leadDays}天</div>
+        <div class="muted" style="font-size:12px;margin-top:2px">注意事项:${escapeHtml(it.note||"")} ${disp}</div>
+      </div>
+      <button class="ghost mini" data-act="del">删除</button>
+    </div>`;
+  }).join("");
+  if(!rows) rows = '<div class="empty">该分类还没有事务，下面添加</div>';
+  box.innerHTML = `<div class="card">
+    <h2>学校事务</h2>
+    <div class="tabs">${tabs}</div>
+    <div class="row" style="margin-bottom:12px">
+      <input id="sTitle" placeholder="标题">
+      <input id="sDdl" type="date">
+      <select id="sStatus"><option>待处理</option><option>进行中</option><option>已完成</option></select>
+      <input id="sLead" type="number" placeholder="提前天数" style="width:90px" value="${state.schoolLead[schoolType]}">
+      <input id="sNote" placeholder="注意事项" style="width:150px">
+      <button id="sAdd">添加</button>
+    </div>
+    <div class="grid-list">${rows}</div>
+  </div>`;
+  box.querySelectorAll('[data-t]').forEach(b=> b.addEventListener("click", ()=> setSchoolType(b.getAttribute("data-t"))));
+  box.querySelector("#sAdd").addEventListener("click", ()=>{
+    const title = box.querySelector("#sTitle").value.trim();
+    const ddl = box.querySelector("#sDdl").value;
+    if(!title){ alert("标题不能为空"); return; }
+    if(!ddl){ alert("请选择 DDL"); return; }
+    addSchool(schoolType, { title, ddl, status:box.querySelector("#sStatus").value,
+      leadDays:box.querySelector("#sLead").value, note:box.querySelector("#sNote").value.trim() });
+  });
+  box.querySelectorAll('[data-act="del"]').forEach(b=> b.addEventListener("click", ()=> deleteSchool(schoolType, b.closest(".item").getAttribute("data-id"))));
+}
+function renderSettings(){ document.getElementById("page-settings").innerHTML = '<div class="card"><h2>数据与设置</h2><div class="empty">建设中</div></div>'; }
+
+/* ============ 数据与设置 ============ */
+function clearData(scope){ if(confirm("确定清空？此操作不可恢复。")) applyClear(scope); }
+function renderSettings(){
+  const box = document.getElementById("page-settings");
+  const s = state;
+  const size = JSON.stringify(s).length;
+  const info = [
+    ["今日计划", s.tasks.length], ["算法题", Object.values(s.algorithm).reduce((a,b)=>a+b.length,0)],
+    ["六级", s.cet6.mock.length + s.cet6.templates.length + s.cet6.words.length],
+    ["学校事务", Object.values(s.school).reduce((a,b)=>a+b.length,0)]
+  ].map(([n,c])=>`<div class="sc"><b>${c}</b><span>${n}</span></div>`).join("");
+  box.innerHTML = `<div class="card">
+    <h2>数据与设置</h2>
+    <p class="muted" style="font-size:12px">数据保存在浏览器本地 <code>localStorage</code>，刷新/关闭/重启不丢失。换设备或清缓存会丢失，请定期导出备份。</p>
+    <div class="row" style="margin-bottom:10px">
+      <button id="expBtn">导出全部数据(JSON)</button>
+      <input id="impFile" type="file" accept=".json">
+      <button id="impBtn" class="ghost">导入恢复</button>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <span class="muted">主题：</span>
+      <button class="tab ${s.settings.theme==='light'?'active':''}" data-th="light">浅色</button>
+      <button class="tab ${s.settings.theme==='dark'?'active':''}" data-th="dark">深色</button>
+    </div>
+    <div class="summary-cards" style="margin:10px 0">${info}</div>
+    <p class="muted" style="font-size:12px">存储占用估算：约 ${size} 字节</p>
+    <h2 style="margin-top:16px">清空数据（需二次确认）</h2>
+    <div class="row">
+      <button class="ghost mini" data-cl="tasks">清空今日计划</button>
+      <button class="ghost mini" data-cl="algo">清空算法题</button>
+      <button class="ghost mini" data-cl="cet6">清空六级</button>
+      <button class="ghost mini" data-cl="school">清空学校事务</button>
+      <button class="ghost mini" data-cl="memo">清空备忘</button>
+      <button class="ghost mini" data-cl="checkin">清空打卡</button>
+      <button class="mini" data-cl="all" style="border-color:var(--bad);color:var(--bad)">全部清空</button>
+    </div>
+  </div>`;
+  box.querySelector("#expBtn").addEventListener("click", ()=> exportData());
+  box.querySelector("#impBtn").addEventListener("click", ()=>{
+    const f = box.querySelector("#impFile").files[0];
+    if(!f){ alert("请先选择 JSON 文件"); return; }
+    importData(f, ()=> confirm("导入将覆盖当前数据，确定继续？"));
+  });
+  box.querySelectorAll('[data-th]').forEach(b=> b.addEventListener("click", ()=>{ setTheme(b.getAttribute("data-th")); switchPage("settings"); }));
+  box.querySelectorAll('[data-cl]').forEach(b=> b.addEventListener("click", ()=> clearData(b.getAttribute("data-cl"))));
+}
+
+/* ============ 今日计划 ============ */
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+let taskFilter = "all";
+function addTask({title, priority="中", cat="", repeat="无"}){
+  const t = { id:uid(), title, status:"未开始", priority, cat, source:"手动",
+    refId:null, refType:null, repeat, generatedDate:todayStr(), createdAt:Date.now() };
+  state.tasks.push(t); save(); render(); return t;
+}
+function cycleStatus(id){
+  const t = findById(state.tasks, id); if(!t) return;
+  t.status = t.status==="未开始" ? "进行中" : t.status==="进行中" ? "已完成" : "未开始";
+  save(); render();
+}
+function updateTask(id, patch){ const t=findById(state.tasks,id); if(!t) return; Object.assign(t, patch); save(); render(); }
+function deleteTask(id){ removeById(state.tasks, id); save(); render(); }
+function setFilter(f){ taskFilter = f; render(); }
+function getFilteredTasks(){
+  if(taskFilter==="未完成") return state.tasks.filter(t=>t.status!=="已完成");
+  if(taskFilter==="已完成") return state.tasks.filter(t=>t.status==="已完成");
+  return state.tasks;
+}
+function renderToday(){
+  const box = document.getElementById("page-today");
+  const tasks = getFilteredTasks();
+  const counts = {未开始:0,进行中:0,已完成:0};
+  state.tasks.forEach(t=> counts[t.status]=(counts[t.status]||0)+1);
+  let rows = tasks.map(t=>{
+    const dotCls = t.status==="未开始"?"do":t.status==="进行中"?"ing":"done";
+    const pBadge = t.priority==="高"?'<span class="badge p1">高</span>':t.priority==="中"?'<span class="badge p2">中</span>':'<span class="badge p3">低</span>';
+    const src = t.source==="派"?'<span class="badge src">派</span>':'';
+    const rep = t.repeat==="每天"?'<span class="badge rep">每天</span>':'';
+    const cat = t.cat?`<span class="muted">· ${escapeHtml(t.cat)}</span>`:'';
+    return `<div class="item" data-id="${t.id}">
+      <button class="dot ${dotCls}" data-act="cycle" title="切换状态"></button>
+      <div style="flex:1"><div>${escapeHtml(t.title)}</div>
+        <div class="row" style="margin-top:2px">${pBadge}${src}${rep}<span class="muted" style="font-size:12px">${t.status}</span>${cat}</div></div>
+      <button class="ghost mini" data-act="del">删除</button>
+    </div>`;
+  }).join("");
+  if(!rows) rows = '<div class="empty">还没有任务，下面添加一条吧</div>';
+  box.innerHTML = `<div class="card">
+    <h2>今日计划 <span class="tag">${state.tasks.length} 条</span></h2>
+    <div class="row" style="margin-bottom:12px">
+      <input id="tTitle" type="text" placeholder="任务标题">
+      <select id="tPri"><option>高</option><option selected>中</option><option>低</option></select>
+      <input id="tCat" type="text" placeholder="分类" style="width:90px">
+      <select id="tRep"><option value="无">不重复</option><option value="每天">每天</option></select>
+      <button id="tAdd">添加</button>
+    </div>
+    <div class="tabs">
+      <button class="tab ${taskFilter==='all'?'active':''}" data-f="all">全部 ${state.tasks.length}</button>
+      <button class="tab ${taskFilter==='未完成'?'active':''}" data-f="未完成">未完成 ${counts.未开始+counts.进行中}</button>
+      <button class="tab ${taskFilter==='已完成'?'active':''}" data-f="已完成">已完成 ${counts.已完成}</button>
+    </div>
+    <div class="grid-list">${rows}</div>
+  </div>`;
+  box.querySelector("#tAdd").addEventListener("click", ()=>{
+    const title = box.querySelector("#tTitle").value.trim();
+    if(!title){ alert("标题不能为空"); return; }
+    addTask({ title, priority:box.querySelector("#tPri").value,
+      cat:box.querySelector("#tCat").value.trim(), repeat:box.querySelector("#tRep").value });
+  });
+  box.querySelectorAll('[data-act="cycle"]').forEach(b=> b.addEventListener("click", ()=> cycleStatus(b.closest(".item").getAttribute("data-id"))));
+  box.querySelectorAll('[data-act="del"]').forEach(b=> b.addEventListener("click", ()=> deleteTask(b.closest(".item").getAttribute("data-id"))));
+  box.querySelectorAll('[data-f]').forEach(b=> b.addEventListener("click", ()=> setFilter(b.getAttribute("data-f"))));
+}
+
+/* ============ 派发 / 打卡 / 自动派发 / 导出导入 / 清空 ============ */
+function dispatchToToday(ref){
+  if(state.tasks.some(t=>t.refType===ref.refType && t.refId===ref.refId)) return false;
+  state.tasks.push({ id:uid(), title:ref.title, status:"未开始", priority:"中",
+    cat:ref.refType, source:"派", refId:ref.refId, refType:ref.refType,
+    repeat:"无", generatedDate:todayStr(), createdAt:Date.now() });
+  save(); return true;
+}
+function doCheckin(key){
+  const c = state.checkin[key] || {streak:0,lastDate:null};
+  const t = todayStr();
+  if(c.lastDate===t) return c;
+  if(c.lastDate===yesterdayStr()) c.streak+=1; else c.streak=1;
+  c.lastDate=t; state.checkin[key]=c; save(); return c;
+}
+function autoDispatchSchool(){
+  ["hw","contest","meeting","notice"].forEach(ty=>{
+    state.school[ty].forEach(it=>{
+      if(it.dispatched) return;
+      const lead = (it.leadDays!=null) ? it.leadDays : (state.schoolLead[ty]!=null ? state.schoolLead[ty] : 3);
+      if(daysBetween(todayStr(), it.ddl) <= lead){ // 今天进入提前窗口
+        dispatchToToday({ refType:"school", refId:it.id, title:"[学校]"+it.title });
+        it.dispatched = true;
+      }
+    });
+  });
+  save();
+}
+function dailyRoll(){
+  const t = todayStr();
+  state.tasks.forEach(task=>{
+    if(task.repeat==="每天" && task.generatedDate!==t){ task.status="未开始"; task.generatedDate=t; }
+  });
+  autoDispatchSchool();
+  save();
+}
+function serialize(){ return JSON.stringify(state); }
+function exportData(){
+  const s = serialize();
+  try{
+    if(typeof URL!=="undefined" && URL.createObjectURL){
+      const blob = new Blob([s], {type:"application/json"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "workbench-data-"+todayStr()+".json";
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+  }catch(e){ /* 下载不可用则忽略，仍返回字符串 */ }
+  return s;
+}
+function applyImport(text){
+  const obj = JSON.parse(text);
+  if(!obj || typeof obj!=="object") throw new Error("无效数据");
+  state = Object.assign(defaultState(), obj);
+  save(); render();
+}
+function importData(file, onConfirm){
+  const reader = new FileReader();
+  reader.onload = ()=>{ if(onConfirm && !onConfirm()) return; applyImport(String(reader.result)); };
+  reader.readAsText(file);
+}
+const MODULE_CLEAR = {
+  tasks: ()=>{ state.tasks=[]; },
+  algo: ()=>{ state.algorithm={leetcode:[],nowcoder:[],luogu:[],lanqiao:[]}; },
+  cet6: ()=>{ state.cet6={mock:[],templates:[],words:[]}; },
+  school: ()=>{ state.school={hw:[],contest:[],meeting:[],notice:[]}; },
+  memo: ()=>{ state.memo=""; },
+  checkin: ()=>{ state.checkin={algorithm:{streak:0,lastDate:null},cet6:{streak:0,lastDate:null}}; }
+};
+function applyClear(scope){
+  if(scope==="all"){ state = defaultState(); }
+  else if(MODULE_CLEAR[scope]){ MODULE_CLEAR[scope](); }
+  save(); render();
+}
+
+/* ============ 初始化 ============ */
+function init(){
+  load(); applyTheme();
+  document.querySelectorAll("#nav .navbtn, #bottomnav .navbtn").forEach(b=>{
+    b.addEventListener("click", ()=>switchPage(b.getAttribute("data-page")));
+  });
+  dailyRoll();
+  switchPage("home");
+}
+
+/* 暴露给测试 */
+window.App = {
+  get state(){ return state; },
+  setNow(d){ nowOverride = d ? new Date(d+"T00:00:00") : null; },
+  load, save, uid, defaultState,
+  upsert, removeById, findById,
+  switchPage, render, applyTheme, setTheme,
+  addTask, cycleStatus, updateTask, deleteTask, setFilter, getFilteredTasks,
+  setAlgoPlatform, addAlgoQuestion, updateAlgoQuestion, deleteAlgoQuestion, dispatchAlgo,
+  addMock, updateMock, deleteMock, addTemplate, updateTemplate, deleteTemplate, addWord, dispatchWord, deleteWord,
+  setSchoolType, addSchool, updateSchool, deleteSchool,
+  setMemo, completeTask,
+  clearData,
+  dispatchToToday, doCheckin, autoDispatchSchool, dailyRoll,
+  serialize, exportData, applyImport, importData, applyClear,
+  todayStr, yesterdayStr, daysBetween
+};
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
+else init();
+</script>
+</body>
+</html>
